@@ -37,6 +37,145 @@ def Srxn_29815(S_29815_reactant1,S_29815_reactant2,S_29815_product1,S_29815_prod
 def Grxn_29815(Hrxn_29815,Srxn_29815):
     Grxn_29815 = Hrxn_29815 - 298.15*(Srxn_29815)/1000
     return Grxn_29815
+    
+def abundances_norm_H(n_C_wanted):
+    
+    #METHANE
+    
+    T = np.linspace(500,3000,26)
+    count_1bar=0
+    count_10mbar=0
+    
+    n_C2H2_1bar = []
+    n_H2O_1bar = []
+    n_CO_1bar = []
+    n_CO2_1bar = []
+    
+    n_C2H2_10mbar = []
+    n_H2O_10mbar = []
+    n_CO_10mbar = []
+    n_CO2_10mbar = []
+    for j in range(2):
+        A=[]
+        if j==0:
+            print("P = 1 bar")
+            K1 = K1_1bar
+            K2 = K2_sin_presion
+            K3 = K3_1bar
+            n_CH4_1bar = []
+        if j==1:
+            print("P = 10 mbar")
+            K1 = K1_10mbar
+            K2 = K2_sin_presion
+            K3 = K3_10mbar
+            n_CH4_10mbar = []
+        A.append(-2*n_C_wanted)
+        A.append(8*(K1/K2)*(n_O-n_C_wanted)**2 + 1 + 2*K1*(n_O-n_C_wanted))
+        A.append(8*(K1/K2)*(n_O-n_C_wanted) + 2*K3 + K1)
+        A.append(2*(K1/K2)*(1 + 8 * K3 * (n_O-n_C_wanted)) + 2*K1*K3)
+        A.append(8*(K1*K3/K2))
+        A.append(8*(K1*K3**2/K2))
+        for i in range(26):
+            print("Coeficientes (A)")
+            print(A[0],'|',A[1][i],'|',A[2][i],'|',A[3][i],'|',A[4][i],'|',A[5][i])
+            roots = poly.polyroots([A[0],A[1][i],A[2][i],A[3][i],A[4][i]])
+            print("Raices para T=",T[i])
+            print(roots)
+            for w in range(len(roots)):
+                two_n_C = float(-A[0]) # We know that n_CH4 should be approx. 2*n_C
+                possible_n_CH4 = roots[w]
+                print(possible_n_CH4)
+                print(two_n_C)
+                if ('{0:.1f}'.format(possible_n_CH4.real) == '{0:.1f}'.format(two_n_C) or (possible_n_CH4.real <= two_n_C and possible_n_CH4.real > 0.0)) and possible_n_CH4.imag == 0.0 :
+                    print("~~~~~ MATCH 1313 ~~~~~(T=",T[i],")","possible_n_CH4.real=",'{0:.1f}'.format(possible_n_CH4.real),"two_n_C=",'{0:.1f}'.format(two_n_C))
+                    if j==0:
+                        n_CH4_1bar.append(possible_n_CH4.real)
+                        count_1bar += 1 # This number should be 26 at the end of the loops (because we have 26 temperatures)
+                    if j==1:
+                        n_CH4_10mbar.append(possible_n_CH4.real)
+                        count_10mbar += 1
+    print("***count_1bar*** = ",count_1bar)
+    print("***count_10mbar*** = ",count_10mbar)
+    
+    print("# METHANE")
+    
+    print(n_CH4_1bar,"|",len(n_CH4_1bar))
+    print(n_CH4_10mbar,"|",len(n_CH4_10mbar))
+    
+    # ACETYLENE
+    print("# ACETYLENE")
+
+    n_C2H2_1bar = K3_1bar * np.array(n_CH4_1bar)**2.0
+    n_C2H2_10mbar = K3_10mbar * np.array(n_CH4_10mbar)**2.0
+    
+    print(n_C2H2_1bar,"|",len(n_C2H2_1bar))
+    print(n_C2H2_10mbar,"|",len(n_C2H2_10mbar))
+
+    # WATER
+    print("# WATER")
+
+    n_H2O_1bar = (2.0 * K3_1bar * np.array(n_CH4_1bar)**2.0) + np.array(n_CH4_1bar) + (2.0 * (n_O - n_C_wanted))
+    n_H2O_10mbar = (2.0 * K3_10mbar * np.array(n_CH4_10mbar)**2.0) + np.array(n_CH4_10mbar) + (2.0 * (n_O - n_C_wanted))
+
+    print(n_H2O_1bar,"|",len(n_H2O_1bar))
+    print(n_H2O_10mbar,"|",len(n_H2O_10mbar))
+
+    # CARBON MONOXIDE
+    print("# CARBON MONOXIDE")
+
+    n_CO_1bar = K1_1bar * n_CH4_1bar * n_H2O_1bar
+    n_CO_10mbar = K1_10mbar * n_CH4_10mbar * n_H2O_10mbar
+
+    print(n_CO_1bar,"|",len(n_CO_1bar))
+    print(n_CO_10mbar,"|",len(n_CO_10mbar))
+
+    # CARBON DIOXIDE
+    print("# CARBON DIOXIDE")
+
+    n_CO2_1bar = n_CO_1bar * n_H2O_1bar /K2_sin_presion
+    n_CO2_10mbar = n_CO_10mbar * n_H2O_10mbar /K2_sin_presion
+    
+    print(n_CO2_1bar,"|",len(n_CO2_1bar))
+    print(n_CO2_10mbar,"|",len(n_CO2_10mbar))
+    
+    return n_CH4_1bar, n_CH4_10mbar, n_C2H2_1bar, n_C2H2_10mbar, n_H2O_1bar, n_H2O_10mbar, n_CO_1bar, n_CO_10mbar, n_CO2_1bar, n_CO2_10mbar
+    
+def graphics_CO(P,figN,CO_wanted): # P = "1bar" o "10mbar" o ""
+    plt.figure()
+    if P == "1bar":
+        plt.plot(T,n_CH4_1bar,label='$CH_{4} (1bar)$',color='black',ls=':',linewidth=3)
+        plt.plot(T,n_C2H2_1bar,label='$C_{2}H_{2} (1bar)$',color='y',ls=':',linewidth=3)
+        plt.plot(T,n_H2O_1bar,label='$H_{2}O (1bar)$',color='m',ls=':',linewidth=3)
+        plt.plot(T,n_CO_1bar,label='$CO (1bar)$',color='c',ls=':',linewidth=3)
+        plt.plot(T,n_CO2_1bar,label='$CO_{2} (1bar)$',color='g',ls=':',linewidth=3)
+    if P == "10mbar":
+        plt.plot(T,n_CH4_10mbar,label='$CH_{4} (10mbar)$',color='black',ls=':',linewidth=1)
+        plt.plot(T,n_C2H2_10mbar,label='$C_{2}H_{2} (10mbar)$',color='y',ls=':',linewidth=1)
+        plt.plot(T,n_H2O_10mbar,label='$H_{2}O (10mbar)$',color='m',ls=':',linewidth=1)
+        plt.plot(T,n_CO_10mbar,label='$CO (10mbar)$',color='c',ls=':',linewidth=1)
+        plt.plot(T,n_CO2_10mbar,label='$CO_{2} (10mbar)$',color='g',ls=':',linewidth=1)
+    if P == "":
+        plt.plot(T,n_CH4_1bar,label='$CH_{4} (1bar)$',color='black',ls=':',linewidth=3)
+        plt.plot(T,n_C2H2_1bar,label='$C_{2}H_{2} (1bar)$',color='y',ls=':',linewidth=3)
+        plt.plot(T,n_H2O_1bar,label='$H_{2}O (1bar)$',color='m',ls=':',linewidth=3)
+        plt.plot(T,n_CO_1bar,label='$CO (1bar)$',color='c',ls=':',linewidth=3)
+        plt.plot(T,n_CO2_1bar,label='$CO_{2} (1bar)$',color='g',ls=':',linewidth=3)
+        plt.plot(T,n_CH4_10mbar,label='$CH_{4} (10mbar)$',color='black',ls='-',linewidth=1)
+        plt.plot(T,n_C2H2_10mbar,label='$C_{2}H_{2} (10mbar)$',color='y',ls='-',linewidth=1)
+        plt.plot(T,n_H2O_10mbar,label='$H_{2}O (10mbar)$',color='m',ls='-',linewidth=1)
+        plt.plot(T,n_CO_10mbar,label='$CO (10mbar)$',color='c',ls='-',linewidth=1)
+        plt.plot(T,n_CO2_10mbar,label='$CO_{2} (10mbar)$',color='g',ls='-',linewidth=1)
+    plt.xlim([500, 3000])
+    plt.ylim([10**-22, 10**0])
+    plt.yscale('log')
+    plt.xlabel('Temperature (K)')
+    plt.ylabel('$ñ_{x}$')
+    plt.title('C/O = '+str(CO_wanted))
+    #plt.legend( loc='best')
+    plt.legend(loc=4,prop={'size':7})
+    plt.savefig('wgs-nist-'+str(figN)+'.png')
+    plt.show()
+
 
     
 T = np.linspace(500,1700,13) # degrees K
@@ -604,104 +743,59 @@ n_Na = 2.23872113857*10**(-6)
 n_K = 1.44543977075*10**(-7)
 n_Fe = 3.2359365693*10**(-5)
 
-# METHANE
+rate_CO_solar = n_C/n_O # This number is C/O = 0.46
 
+# ABUNDANCES WITH SOLAR C/O=0.46
 
-T = np.linspace(500,3000,26)
-count_1bar=0
-count_10mbar=0
-for j in range(2):
-    A=[]
-    if j==0:
-        print("P = 1 bar")
-        K1 = K1_1bar
-        K2 = K2_1bar
-        K3 = K3_1bar
-        n_CH4_1bar = []
-    if j==1:
-        print("P = 10 mbar")
-        K1 = K1_10mbar
-        K2 = K2_10mbar
-        K3 = K3_10mbar
-        n_CH4_10mbar = []
-    A.append(-2*n_C)
-    A.append(8*(K1/K2)*(n_O-n_C)**2 + 1 + 2*K1*(n_O-n_C))
-    A.append(8*(K1/K2)*(n_O-n_C) + 2*K3 + K1)
-    A.append(2*(K1/K2)*(1 + 8 * K3 * (n_O-n_C)) + 2*K3 + K1)
-    A.append(8*(K1*K3/K2))
-    A.append(8*(K1*K3**2/K2))
-    for i in range(26):
-        print("Coeficientes (A)")
-        print(A[0],'|',A[1][i],'|',A[2][i],'|',A[3][i],'|',A[4][i],'|',A[5][i])
-        roots = poly.polyroots([A[0],A[1][i],A[2][i],A[3][i],A[4][i]])
-        print("Raices para T=",T[i])
-        print(roots)
-        for w in range(len(roots)):
-            two_n_C = float(-A[0]) # We know that n_CH4 should be approx. 2*n_C
-            possible_n_CH4 = float(roots[w])
-            print(possible_n_CH4)
-            print(two_n_C)
-            if possible_n_CH4 >= 0.0 :
-                print("~~~~~ MATCH 1313 ~~~~~(T=",T[i],")")
-                if j==0:
-                    n_CH4_1bar.append(possible_n_CH4)
-                    count_1bar += 1 # This number should be 26 at the end of the loops (because we have 26 temperatures)
-                if j==1:
-                    n_CH4_10mbar.append(possible_n_CH4)
-                    count_10mbar += 1
-print("***count_1bar*** = ",count_1bar)
-print("***count_10mbar*** = ",count_10mbar)
-print(n_CH4_1bar,"|",len(n_CH4_1bar))
-print(n_CH4_10mbar,"|",len(n_CH4_1bar))
-
-# ACETYLENE
-
-n_C2H2_1bar = K3_1bar * np.array(n_CH4_1bar)**2
-n_C2H2_10mbar = K3_1bar * np.array(n_CH4_10mbar)**2
-
-# WATER
-
-n_H2O_1bar = 2 * K3_1bar * np.array(n_CH4_1bar)**2 + np.array(n_CH4_1bar) + 2 * (n_O-n_C)
-n_H2O_10mbar = 2 * K3_10mbar * np.array(n_CH4_10mbar)**2 + np.array(n_CH4_10mbar) + 2 * (n_O-n_C)
-
-
-
-# CARBON MONOXIDE
-
-n_CO_1bar = K1_1bar * n_CH4_1bar * n_H2O_1bar
-n_CO_10mbar = K1_10mbar * n_CH4_10mbar * n_H2O_10mbar
-
-# CARBON DIOXIDE
-
-n_CO2_1bar = n_CO_1bar * n_H2O_1bar /K2_1bar
-n_CO2_10mbar = n_CO_10mbar * n_H2O_10mbar /K2_10mbar
+n_CH4_1bar, n_CH4_10mbar, n_C2H2_1bar, n_C2H2_10mbar, n_H2O_1bar, n_H2O_10mbar, n_CO_1bar, n_CO_10mbar, n_CO2_1bar, n_CO2_10mbar = abundances_norm_H(n_C)
 
 # IT WORKS! NOW GRAPHICS!
 
-plt.figure()
-#plt.plot(T,n_CH4_10mbar,label='$CH_{4} (10mbar)$',color='black',ls=':',linewidth=3)
-plt.plot(T,n_CH4_1bar,label='$CH_{4} (1bar)$',color='black',ls=':',linewidth=3)
-#plt.plot(T,n_C2H2_10mbar,label='$C_{2}H_{2} (10mbar)$',color='r',ls=':',linewidth=3)
-plt.plot(T,n_C2H2_1bar,label='$C_{2}H_{2} (1bar)$',color='y',ls=':',linewidth=3)
-#plt.plot(T,n_H2O_10mbar,label='$H_{2}O (10mbar)$',color='m',ls=':',linewidth=3)
-plt.plot(T,n_H2O_1bar,label='$H_{2}O (1bar)$',color='m',ls=':',linewidth=3)
-#plt.plot(T,n_CO_10mbar,label='$CO (10mbar)$',color='c',ls=':',linewidth=3)
-plt.plot(T,n_CO_1bar,label='$CO (1bar)$',color='c',ls=':',linewidth=3)
-#plt.plot(T,n_CO2_10mbar,label='$CO_{2} (10mbar)$',color='g',ls=':',linewidth=3)
-plt.plot(T,n_CO2_1bar,label='$CO_{2} (1bar)$',color='g',ls=':',linewidth=3)
-plt.xlim([500, 3000])
-plt.ylim([10**-22, 10**0])
-plt.yscale('log')
-plt.xlabel('Temperature (K)')
-plt.ylabel('$ñ_{x}$')
-plt.legend( loc='best')
-plt.savefig('wgs-nist-fig3-a.png')
-plt.show()
+graphics_CO("1bar", "fig3-a", '{0:.3f}'.format(rate_CO_solar))
 
-                
-    
+# YASS!!
 
+# NOW WE MODIFY C/O AND GENERATES MORE GRAPHICS
+
+n_O = 5 * 10**(-4)
+
+# C/O = 0.1    
+
+CO_wanted = 0.1
+n_C_wanted = (CO_wanted/rate_CO_solar) * n_C
+
+n_CH4_1bar, n_CH4_10mbar, n_C2H2_1bar, n_C2H2_10mbar, n_H2O_1bar, n_H2O_10mbar, n_CO_1bar, n_CO_10mbar, n_CO2_1bar, n_CO2_10mbar = abundances_norm_H(n_C_wanted)
+graphics_CO("", "fig4-a",'{0:.3f}'.format(CO_wanted))
+
+# C/O = 1    
+
+
+CO_wanted = 1.0
+n_C_wanted = (CO_wanted/rate_CO_solar) * n_C
+
+n_CH4_1bar, n_CH4_10mbar, n_C2H2_1bar, n_C2H2_10mbar, n_H2O_1bar, n_H2O_10mbar, n_CO_1bar, n_CO_10mbar, n_CO2_1bar, n_CO2_10mbar = abundances_norm_H(n_C_wanted)
+graphics_CO("", "fig4-b", '{0:.3f}'.format(CO_wanted))
+
+
+# C/O = 10          
+
+CO_wanted = 10.0
+n_C_wanted = (CO_wanted/rate_CO_solar) * n_C
+
+n_CH4_1bar, n_CH4_10mbar, n_C2H2_1bar, n_C2H2_10mbar, n_H2O_1bar, n_H2O_10mbar, n_CO_1bar, n_CO_10mbar, n_CO2_1bar, n_CO2_10mbar = abundances_norm_H(n_C_wanted)
+graphics_CO("", "fig4-c", '{0:.3f}'.format(CO_wanted))
+
+
+# C/O = 100          
+
+CO_wanted = 100.0
+n_C_wanted = (CO_wanted/rate_CO_solar) * n_C  
+
+n_CH4_1bar, n_CH4_10mbar, n_C2H2_1bar, n_C2H2_10mbar, n_H2O_1bar, n_H2O_10mbar, n_CO_1bar, n_CO_10mbar, n_CO2_1bar, n_CO2_10mbar = abundances_norm_H(n_C_wanted)
+graphics_CO("", "fig4-d", '{0:.3f}'.format(CO_wanted))
  
+
+# Algo no está funcinando bien con el H2O, CO y CO2. Con 1 bar desde 1100K  con 10mbar con 1500K
 
 
 
